@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Simple Beatbox UI for Raaz </title>
+  <style>
+    body {
+      background-color: #111;
+      color: white;
+      font-family: sans-serif;
+      text-align: center;
+      padding: 50px;
+    }
+    button {
+      background-color: crimson;
+      color: white;
+      font-size: 1.2em;
+      padding: 10px 20px;
+      margin: 10px;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+    #bar {
+      width: 300px;
+      height: 30px;
+      background: #333;
+      margin: 20px auto;
+      border-radius: 5px;
+      overflow: hidden;
+    }
+    #level {
+      height: 100%;
+      width: 0%;
+      background: limegreen;
+      transition: width 0.1s;
+    }
+  </style>
+</head>
+<body>
+  <h1>🥁 Basic Beatbox Interface for Raaz </h1>
+
+  <button onclick="playSound('kick')">Kick</button>
+  <button onclick="playSound('snare')">Snare</button>
+  <button onclick="playSound('hat')">Hi-Hat</button>
+  <br>
+  <button onclick="startMic()">🎤 Start Mic</button>
+  <button onclick="stopMic()">🛑 Stop Mic</button>
+
+  <div id="bar"><div id="level"></div></div>
+  <p id="status">Mic not active</p>
+
+  <audio id="kick" src="sounds/kick.wav"></audio>
+  <audio id="snare" src="sounds/snare.wav"></audio>
+  <audio id="hat" src="sounds/hat.wav"></audio>
+
+  <script>
+    let audioCtx;
+    let micStream;
+    let analyser;
+    let animationId;
+
+    function playSound(id) {
+      const audio = document.getElementById(id);
+      if (audio) {
+        audio.currentTime = 0;
+        audio.play();
+      }
+    }
+
+    async function startMic() {
+      micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      audioCtx = new AudioContext();
+      const source = audioCtx.createMediaStreamSource(micStream);
+      analyser = audioCtx.createAnalyser();
+      analyser.fftSize = 256;
+      const dataArray = new Uint8Array(analyser.frequencyBinCount);
+
+      source.connect(analyser);
+      document.getElementById("status").innerText = "Listening...";
+
+      function updateVolume() {
+        analyser.getByteFrequencyData(dataArray);
+        const avg = dataArray.reduce((a, b) => a + b, 0) / dataArray.length;
+        const percent = Math.min(100, (avg / 255) * 100);
+        document.getElementById("level").style.width = percent + "%";
+        animationId = requestAnimationFrame(updateVolume);
+      }
+
+      updateVolume();
+    }
+
+    function stopMic() {
+      if (animationId) cancelAnimationFrame(animationId);
+      if (micStream) {
+        micStream.getTracks().forEach(track => track.stop());
+        micStream = null;
+      }
+      if (audioCtx) {
+        audioCtx.close();
+        audioCtx = null;
+      }
+      document.getElementById("status").innerText = "Mic stopped";
+      document.getElementById("level").style.width = "0%";
+    }
+  </script>
+</body>
+</html>
+
